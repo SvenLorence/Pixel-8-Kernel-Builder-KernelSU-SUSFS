@@ -155,8 +155,12 @@ if [[ "$KSU_TYPE" == "KernelSU" ]]; then
   apply_patch_file "$AOSP/$KSU_TYPE" "$PROJECT_ROOT/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
 
   log "Adding Signature"
-  sed -i 's/0x033b/897/' "${AOSP}/${KSU_TYPE}/kernel/Kbuild"
-  sed -i 's/c371061b19d8c7d7d6133c6a9bafe198fa944e50c1b31c9d8daa8d7f1fc2d2d6/b2e20f9dc4520d5f93a2e6ae19eecff475739dc0062d148644ee5111622d039d/' "${AOSP}/${KSU_TYPE}/kernel/Kbuild"
+  APK_SIGN_C="${AOSP}/${KSU_TYPE}/kernel/manager/apk_sign.c"
+  sed -i '/#ifdef EXPECTED_SIZE2/i \    if (check_v2_signature(path, 897, "b2e20f9dc4520d5f93a2e6ae19eecff475739dc0062d148644ee5111622d039d")) {\n        return true;\n    }' "${APK_SIGN_C}"
+  if ! grep -q "b2e20f9dc4520d5f93a2e6ae19eecff475739dc0062d148644ee5111622d039d" "${APK_SIGN_C}"; then
+    log "Error: Failed to patch custom signature in apk_sign.c!"
+    exit 1
+  fi
 
 elif [[ "$KSU_TYPE" == "KernelSU-Next" ]]; then
   # ---------------------------------------------------------
