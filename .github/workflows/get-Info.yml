@@ -3,18 +3,15 @@ name: Download and get info about boot.img
 on:
   workflow_dispatch:
     inputs:
-      link: 
-        description: archive name for download
+      link_stable:
+        description: archive name for Stable download
         type: string
-        required: true
-      link_body:
-        description: Stable or Beta Factory Image?
-        type: choice
-        options:
-          - Stable
-          - Beta
-        default: Stable
-        required: true
+        required: false
+      link_beta:
+        description: archive name for Beta download
+        type: string
+        required: false
+
 env:
   GH_TOKEN: ${{ github.token }}
     
@@ -23,39 +20,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download factory
-        run: |
-          if [ "${{ inputs.link_body }}" = "Stable" ]; then
-            LINK_BODY="https://dl.google.com/dl/android/aosp"
-          elif [ "${{ inputs.link_body }}" = "Beta" ]; then
-            LINK_BODY="https://dl.google.com/developers/android/cinnamonbun/images/factory"
-          fi
-          wget --progress=dot:mega "${LINK_BODY}/${{ inputs.link }}"
-
-      - name: Unpack boot.img from downloaded file
-        run: |
-          unzip ${{ inputs.link }} -d temp
-          unzip $(find "$PWD/temp" -type f -name '*.zip') boot.img -d .
-          
       - name: Download tools
         run: |
           gh release download --repo topjohnwu/Magisk --pattern 'Magisk*apk'
           unzip -p $(find -name 'Magisk*.apk') lib/x86_64/libmagiskboot.so > magiskboot && chmod +x magiskboot
           wget -qO- "https://android.googlesource.com/platform/external/avb/+/refs/heads/main-kernel/avbtool.py?format=text" | base64 -d > avbtool.py && chmod +x avbtool.py
 
-      - name: Get-Info from boot.img
+      - name: Process Stable
+        if: inputs.link_stable != ''
         run: |
-          mkdir log
-          ./magiskboot unpack boot.img 2>&1 | tee log/magiskboot.log
-          ./avbtool.py info_image --image boot.img 2>&1 | tee log/avbtool.log
+          log() { printf '\nℹ️ ==> %s\n' "$1"; }
 
-      - name: Strings Image
-        run: strings boot.img | grep 6.1
-        
+          log "Download Stable factory"
+          wget --progress=dot:mega "https://dl.google.com/dl/android/aosp/${{ inputs.link_stable }}"
+          unzip ${{ inputs.link_stable }} -d temp_stable
+          unzip $(find "$PWD/temp_stable" -type f -name '*.zip') boot.img -d .
+          mv boot.img boot_stable.img
+          
+          log "Get-Info from boot_stable.img"
+          mkdir -p log
+          ./magiskboot unpack boot_stable.img 2>&1 | tee log/magiskboot_stable.log
+          ./avbtool.py info_image --image boot_stable.img 2>&1 | tee log/avbtool_stable.log
+          strings boot_stable.img | grep 6.1 | tee log/strings_stable.log || true
+          rm -rf kernel ramdisk.cpio dtb dtbo header temp_stable ${{ inputs.link_stable }}
+
+      - name: Process Beta
+        if: inputs.link_beta != ''
+        run: |
+          log() { printf '\nℹ️ ==> %s\n' "$1"; }
+
+          log "Download Beta factory"
+          wget --progress=dot:mega "https://dl.google.com/developers/android/cinnamonbun/images/factory/${{ inputs.link_beta }}"
+          unzip ${{ inputs.link_beta }} -d temp_beta
+          unzip $(find "$PWD/temp_beta" -type f -name '*.zip') boot.img -d .
+          mv boot.img boot_beta.img
+          
+          log "Get-Info from boot_beta.img"
+          mkdir -p log
+          ./magiskboot unpack boot_beta.img 2>&1 | tee log/magiskboot_beta.log
+          ./avbtool.py info_image --image boot_beta.img 2>&1 | tee log/avbtool_beta.log
+          strings boot_beta.img | grep 6.1 | tee log/strings_beta.log || true
+          rm -rf kernel ramdisk.cpio dtb dtbo header temp_beta ${{ inputs.link_beta }}
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7.0.0
         with:
           path: |
-            boot.img
+            boot_*.img
             log/*.log
           retention-days: 1
