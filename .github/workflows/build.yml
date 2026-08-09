@@ -56,7 +56,7 @@ jobs:
           swap-storage: true
         
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
@@ -78,3 +78,76 @@ jobs:
           path: output/*
           retention-days: 1
           archive: true
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate Release Body
+        run: |
+          source Variables.conf
+          STABLE_BUILD_ID=$(echo "$STABLE_fingerprint" | grep -oE '[A-Z0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+          BETA_BUILD_ID=$(echo "$BETA_fingerprint" | grep -oE '[A-Z0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+          
+          cat <<EOF > release_body.md
+          ### 📱 Build Information
+          | Parameters | Stable | Beta |
+          | --- | --- | --- |
+          | **Build ID** | \`${STABLE_BUILD_ID}\` | \`${BETA_BUILD_ID}\` |
+          | **Security Patch** | \`${STABLE_security_patch}\` | \`${BETA_security_patch}\` |
+
+          ### ⚙️ Features
+          Automated kernel build with necessary patches. Integrated into the kernel:
+          - **Root**: KernelSU
+          - **SUSFS**: patched to hide root
+          - **Baseband-guard**: LSM module blocking unauthorized writes to critical partitions (modem/baseband protection)
+          - **Custom manager signature**: a manager with package and app name spoofing; get it here: [SvenLorence/KernelSU](https://github.com/SvenLorence/KernelSU)
+
+          ### ⚡ How to flash (Installation)
+          1. Download the appropriate \`boot.img\` from the releases.
+          2. Open a terminal in the folder containing the downloaded file.
+          3. Reboot your phone into bootloader mode and connect it to your PC.
+          4. Perform a test boot to verify the kernel works:
+          \`\`\`sh
+          fastboot boot boot.img
+          \`\`\`
+          5. If the system boots successfully, reboot back into bootloader and flash permanently:
+          \`\`\`sh
+          fastboot flash boot boot.img
+          fastboot reboot
+          \`\`\`
+          EOF
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd artifacts
+          for archive in *.7z; do
+            if [ -f "$archive" ]; then
+              7z x -y "$archive"
+              CLEAN_NAME=$(echo "${archive%.7z}" | sed 's/_boot\.img//')
+              mv boot.img "${CLEAN_NAME}_boot.img"
+              rm "$archive"
+            fi
+          done
+          cd ..
+
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          gh release create "$SHORT_SHA" artifacts/* \
+            --title "Kernel Build $SHORT_SHA" \
+            --notes-file release_body.md
