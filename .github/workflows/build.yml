@@ -140,8 +140,6 @@ jobs:
           for archive in *.7z; do
             if [ -f "$archive" ]; then
               7z x -y "$archive"
-              CLEAN_NAME=$(echo "${archive%.7z}" | sed 's/_boot\.img//')
-              mv boot.img "${CLEAN_NAME}_boot.img"
               rm "$archive"
             fi
           done

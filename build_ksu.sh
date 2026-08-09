@@ -330,8 +330,9 @@ python3 "$TMPDIR/avbtool.py" add_hash_footer \
 rm -rf *kernel* ramdisk* header* dtb* unknown*
 rm -rf "$TMPDIR"
 
-BOOT_NAME="${KERNEL_VER}_boot.img_${KSU_TYPE}"
-7z a "${BOOT_NAME}.7z" boot.img
+BOOT_NAME="${KERNEL_VER}_${KSU_TYPE}_${TYPE_FIRMWARE,,}_boot.img"
+mv boot.img "$BOOT_NAME"
+7z a "${BOOT_NAME}.7z" "$BOOT_NAME"
 
-rm -f boot.img
+rm -f "$BOOT_NAME"
 printf '\nDone: output/%s.7z\n' "${BOOT_NAME}"
