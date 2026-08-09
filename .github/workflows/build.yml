@@ -105,10 +105,48 @@ jobs:
           
           cat <<EOF > release_body.md
           ### 📱 Build Information
-          | Parameters | Stable | Beta |
-          | --- | --- | --- |
-          | **Build ID** | \`${STABLE_BUILD_ID}\` | \`${BETA_BUILD_ID}\` |
-          | **Security Patch** | \`${STABLE_security_patch}\` | \`${BETA_security_patch}\` |
+          <table>
+            <tr>
+              <th>Parameters</th>
+              <th>Stable</th>
+              <th>Beta</th>
+            </tr>
+            <tr>
+              <td><b>Device</b></td>
+              <td colspan="2" align="center">Pixel 8/Pro</td>
+            </tr>
+            <tr>
+              <td><b>Build ID</b></td>
+              <td><code>${STABLE_BUILD_ID}</code></td>
+              <td><code>${BETA_BUILD_ID}</code></td>
+            </tr>
+            <tr>
+              <td><b>Security Patch</b></td>
+              <td><code>${STABLE_security_patch}</code></td>
+              <td><code>${BETA_security_patch}</code></td>
+            </tr>
+            <tr>
+              <td><a href="https://android.googlesource.com/kernel/common/+refs"><b>Kernel branch</b></a></td>
+              <td><code>${STABLE_BRANCH}</code></td>
+              <td><code>${BETA_BRANCH}</code></td>
+            </tr>
+          </table>
+
+          ### 📦 Components
+          <table>
+            <tr>
+              <th>Component</th>
+              <th>Commit</th>
+            </tr>
+            <tr>
+              <td><b>KernelSU</b></td>
+              <td><code>${KSU_COMMIT}</code></td>
+            </tr>
+            <tr>
+              <td><b>SUSFS</b></td>
+              <td><code>${SUSFS_COMMIT}</code></td>
+            </tr>
+          </table>
 
           ### ⚙️ Features
           Automated kernel build with necessary patches. Integrated into the kernel:
@@ -147,5 +185,5 @@ jobs:
 
           SHORT_SHA=$(git rev-parse --short HEAD)
           gh release create "$SHORT_SHA" artifacts/* \
-            --title "Kernel Build $SHORT_SHA" \
+            --title "Pixel 8/Pro Kernel Build $SHORT_SHA" \
             --notes-file release_body.md
