@@ -1,12 +1,14 @@
-[🇷🇺 Русский](README_ru.md) | [🇺🇸 English](README.md)
+<img src="https://raw.githubusercontent.com/lipis/flag-icons/refs/heads/main/flags/4x3/us.svg" height="14" /> `English` | [<img src="https://raw.githubusercontent.com/lipis/flag-icons/refs/heads/main/flags/4x3/ru.svg" height="14" /> Русский](README_ru.md)
 
 # Pixel Kernel Builder: KernelSU & SUSFS
+> [!IMPORTANT]
+> Only for Pixel 8/Pro
 
 ### ⚠️ Warning
 As stated in the MIT License (see `LICENSE` file) - the software is provided "AS IS". No warranties. If your phone bricks or goes into a bootloop, the authors are not responsible. No complaints accepted, you do everything entirely at your own risk.
 
 ### ⚙️ Features
-Automated kernel build with necessary patches. Integrated into the kernel:
+Custom kernel build with the following integrations:
 - **Root**: KernelSU
 - **SUSFS**: patched to hide root
 - **Baseband-guard**: LSM module blocking unauthorized writes to critical partitions (modem/baseband protection)

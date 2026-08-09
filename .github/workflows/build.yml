@@ -149,7 +149,7 @@ jobs:
           </table>
 
           ### ⚙️ Features
-          Automated kernel build with necessary patches. Integrated into the kernel:
+          Custom kernel build with the following integrations:
           - **Root**: KernelSU
           - **SUSFS**: patched to hide root
           - **Baseband-guard**: LSM module blocking unauthorized writes to critical partitions (modem/baseband protection)

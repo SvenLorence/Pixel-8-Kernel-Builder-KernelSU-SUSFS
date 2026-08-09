@@ -1,12 +1,14 @@
-[🇺🇸 English](README.md) | [🇷🇺 Русский](README_ru.md)
+[<img src="https://raw.githubusercontent.com/lipis/flag-icons/refs/heads/main/flags/4x3/us.svg" height="14" /> English](README.md) | <img src="https://raw.githubusercontent.com/lipis/flag-icons/refs/heads/main/flags/4x3/ru.svg" height="14" /> `Русский`
 
 # Pixel Kernel Builder: KernelSU & SUSFS
+> [!IMPORTANT]
+> Только для Pixel 8/Pro
 
 ### ⚠️ Предупреждение
 Как гласит лицензия MIT (см. файл `LICENSE`) - софт предоставляется "КАК ЕСТЬ". Никаких гарантий. Если ваш телефон окирпичится или уйдет в бутлуп, авторы ответственности не несут. Претензии не принимаются, всё делаете исключительно на свой страх и риск. 
 
 ### ⚙️ Что внутри
-Автоматическая сборка ядра с нужными патчами. В ядро интегрировано:
+Сборка кастомного ядра со следующими интеграциями:
 - **Root**: KernelSU
 - **SUSFS**: пропатчено для скрытия рута
 - **Baseband-guard**: LSM модуль для блокировки несанкционированной записи в критические разделы (защита модема/baseband)
