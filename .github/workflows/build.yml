@@ -1,17 +1,22 @@
 name: Build Kernel
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       firmware:
         type: choice
         description: "Firmware type"
+        default: stable
         options:
           - stable
           - beta
       ksu_type:
         type: choice
         description: "KernelSU type"
+        default: ksu
         options:
           - ksu
           - ksun
@@ -45,14 +50,14 @@ jobs:
         run: ./first_install.sh
 
       - name: Build Kernel
-        run: ./build_ksu.sh --${{ inputs.firmware }} --${{ inputs.ksu_type }}
+        run: ./build_ksu.sh --${{ inputs.firmware || 'stable' }} --${{ inputs.ksu_type || 'ksu' }}
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: boot_${{ inputs.firmware }}_${{ inputs.ksu_type }}
+          name: boot_${{ inputs.firmware || 'stable' }}_${{ inputs.ksu_type || 'ksu' }}
           path: output/*
           retention-days: 1
           archive: true
