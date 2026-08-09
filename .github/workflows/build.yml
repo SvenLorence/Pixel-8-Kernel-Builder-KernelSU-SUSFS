@@ -23,8 +23,25 @@ on:
           - sukisu
 
 jobs:
-  build:
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo 'matrix={"firmware":["${{ inputs.firmware }}"],"ksu_type":["${{ inputs.ksu_type }}"]}' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"firmware":["stable","beta"],"ksu_type":["ksu"]}' >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
 
     steps:
       - name: Free Disk Space (Ubuntu)
@@ -50,14 +67,14 @@ jobs:
         run: ./first_install.sh
 
       - name: Build Kernel
-        run: ./build_ksu.sh --${{ inputs.firmware || 'stable' }} --${{ inputs.ksu_type || 'ksu' }}
+        run: ./build_ksu.sh --${{ matrix.firmware }} --${{ matrix.ksu_type }}
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: boot_${{ inputs.firmware || 'stable' }}_${{ inputs.ksu_type || 'ksu' }}
+          name: boot_${{ matrix.firmware }}_${{ matrix.ksu_type }}
           path: output/*
           retention-days: 1
           archive: true
