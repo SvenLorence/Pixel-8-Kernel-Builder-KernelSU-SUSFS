@@ -6,3 +6,7 @@ env.config
 SukiSU-Ultra/
 .antigravitycli/
 Manager_KernelSU/
+
+stable_source/
+beta_source/
+pixel/

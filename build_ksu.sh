@@ -15,8 +15,27 @@ source "$PROJECT_ROOT/Variables.conf"
 # ==============================================================================
 
 usage() {
-  echo "Usage: $0 --stable|--beta --ksu|--ksun|--sukisu"
-  exit 1
+  local exit_code="${1:-1}"
+  cat <<EOF
+Usage: $0 [FIRMWARE] [ROOT_SOLUTION] [OPTIONS]
+
+Note: Before building, configure your firmware branches and AVB metadata 
+in the Variables.conf file.
+
+FIRMWARE (choose one):
+  --stable       Build for Stable firmware branch
+  --beta         Build for Beta firmware branch
+
+ROOT SOLUTION (choose one):
+  --ksu          Integrate KernelSU
+  --ksun         Integrate KernelSU-Next (Experimental, requires manual fixes)
+  --sukisu       Integrate SukiSU-Ultra (Experimental, requires manual fixes)
+
+OPTIONS:
+  --save-cache   Skip cleaning the compiler cache (out/ folder) for faster recompilation
+  -h, --help     Show this help message and exit
+EOF
+  exit "$exit_code"
 }
 
 log() {
@@ -42,15 +61,18 @@ apply_patch_file() {
 
 TYPE_FIRMWARE=""
 KSU_TYPE_FLAG=""
+SAVE_CACHE=0
 
 for arg in "$@"; do
   case $arg in
+    -h|--help) usage 0 ;;
     --stable) TYPE_FIRMWARE="STABLE" ; FOLDER_KERNEL="stable_source" ;;
     --beta) TYPE_FIRMWARE="BETA" ; FOLDER_KERNEL="beta_source" ;;
     --ksu) KSU_TYPE_FLAG="KernelSU" ;;
     --ksun) KSU_TYPE_FLAG="KernelSU-Next" ;;
     --sukisu) KSU_TYPE_FLAG="SukiSU-Ultra" ;;
-    *) echo "Unknown flag: $arg"; usage ;;
+    --save-cache) SAVE_CACHE=1 ;;
+    *) echo "Unknown flag: $arg"; usage 1 ;;
   esac
 done
 
@@ -73,19 +95,59 @@ sudo umount "$AOSP" 2>/dev/null || true
 rm -rf "$PROJECT_ROOT/susfs4ksu" "$PROJECT_ROOT/KPatch-Next" "$PROJECT_ROOT/output" "$PROJECT_ROOT/AnyKernel3" 2>/dev/null || true
 
 for kernel_folder in stable_source beta_source; do
-  cd "$PROJECT_ROOT/$kernel_folder"
-  git reset --hard HEAD
-  git clean -fdx
-  rm -rf Baseband-guard KernelSU KernelSU-Next
+  if [[ -d "$PROJECT_ROOT/$kernel_folder" ]]; then
+    cd "$PROJECT_ROOT/$kernel_folder"
+    git reset --hard HEAD
+    git clean -fdx
+    rm -rf Baseband-guard KernelSU KernelSU-Next
+  fi
 done
 
-cd "$KERNEL"
-git reset --hard HEAD
-git clean -fdx
+if [[ -d "$KERNEL" ]]; then
+  cd "$KERNEL"
+  git reset --hard HEAD
+  if [[ "$SAVE_CACHE" == "0" ]]; then
+    git clean -fdx
+  else
+    git clean -fdx --exclude=out/
+  fi
+fi
 
 # ==============================================================================
 #                             PREPARE SOURCES
 # ==============================================================================
+
+log "Updating Google kernel repositories..."
+for branch_var in STABLE_BRANCH BETA_BRANCH; do
+  branch="${!branch_var}"
+  folder="stable_source"
+  [[ "$branch_var" == "BETA_BRANCH" ]] && folder="beta_source"
+
+  if [[ ! -d "$PROJECT_ROOT/$folder/.git" ]]; then
+    log "Cloning $folder from branch $branch"
+    git clone --depth=1 -b "$branch" https://android.googlesource.com/kernel/common "$PROJECT_ROOT/$folder"
+  else
+    log "Fetching latest commits for $folder ($branch)..."
+    git -C "$PROJECT_ROOT/$folder" fetch --depth=1 origin "$branch"
+    git -C "$PROJECT_ROOT/$folder" reset --hard FETCH_HEAD
+    log "Updated $folder to latest commit on $branch."
+  fi
+done
+
+log "Updating GrapheneOS pixel repository..."
+if [[ ! -d "$KERNEL/.git" ]]; then
+  log "Cloning pixel kernel from tag $PIXEL_TAG"
+  git clone --depth=1 -b "$PIXEL_TAG" https://gitlab.com/grapheneos/kernel_pixel.git "$KERNEL"
+else
+  CURRENT_TAG=$(git -C "$KERNEL" describe --tags --exact-match 2>/dev/null || echo "")
+  if [[ "$CURRENT_TAG" != "$PIXEL_TAG" ]]; then
+    log "PIXEL_TAG changed. Fetching new tag $PIXEL_TAG..."
+    git -C "$KERNEL" fetch --depth=1 origin tag "$PIXEL_TAG"
+    git -C "$KERNEL" checkout FETCH_HEAD
+  else
+    log "Pixel kernel is already at tag $PIXEL_TAG. No update needed."
+  fi
+fi
 
 cd "$PROJECT_ROOT"
 git clone https://gitlab.com/simonpunk/susfs4ksu --single-branch -b gki-android14-6.1
