@@ -9,4 +9,10 @@ Manager_KernelSU/
 
 stable_source/
 beta_source/
-pixel/
+kernel_pixel_6.1/
+kernel_pixel_6.12/
+rust
+AGENTS.md
+*.txt
+*claude*
+out
