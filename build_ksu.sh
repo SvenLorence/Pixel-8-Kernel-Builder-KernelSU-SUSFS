@@ -188,7 +188,11 @@ if [[ "$USE_SUSFS" == "1" ]]; then
   log "Cloning susfs4ksu branch gki-${GKI_VERSION}"
   git clone https://gitlab.com/simonpunk/susfs4ksu --single-branch -b "gki-${GKI_VERSION}"
   cd "${PROJECT_ROOT}/susfs4ksu"
-  git checkout "$SUSFS_KSU_COMMIT"
+  if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
+    git checkout "${SUSFS_KSU_COMMIT_6_1}"
+  elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
+    git checkout "${SUSFS_KSI_COMMIT_6_12}"
+  fi
 fi
 
 log "Mount kernel source"
