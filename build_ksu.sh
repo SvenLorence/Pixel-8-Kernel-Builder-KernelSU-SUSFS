@@ -432,7 +432,7 @@ if [[ "$KSU_TYPE" == "KernelSU-Next" ]]; then
   ./kptools-linux -p -i "$DIST/Image" -k kpimg-linux -o "$DIST/Image_patched"
   mv -f "$DIST/Image_patched" "$DIST/Image"
 
-  gh release download v30.2 --repo topjohnwu/Magisk -p 'Magisk*.apk' --clobber
+  gh release download v31.0 --repo topjohnwu/Magisk -p 'Magisk*.apk' --clobber
   unzip -oj Magisk*.apk lib/x86_64/libmagiskboot.so
   mv -f libmagiskboot.so magiskboot
   chmod +x magiskboot
