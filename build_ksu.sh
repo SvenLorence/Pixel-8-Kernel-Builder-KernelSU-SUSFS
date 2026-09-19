@@ -89,20 +89,29 @@ if [[ -z "${TYPE_FIRMWARE}" || -z "$KSU_TYPE_FLAG" ]]; then
 fi
 
 if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
-  KERNEL="${PROJECT_ROOT}/kernel_pixel_6.1"
   FOLDER_KERNEL="stable_source"
   GKI_BRANCH="$STABLE_BRANCH"
 elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
-  KERNEL="${PROJECT_ROOT}/kernel_pixel_6.12"
   FOLDER_KERNEL="beta_source"
   GKI_BRANCH="$BETA_BRANCH"
+fi
+
+GKI_VERSION="$(echo "$GKI_BRANCH" | cut -d'-' -f1,2)"
+KERNEL_MAJOR_MINOR="$(echo "$GKI_BRANCH" | grep -oE '[0-9]+\.[0-9]+' | head -n 1)"
+
+if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
+  KERNEL="${PROJECT_ROOT}/kernel_pixel_6.1"
+elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
+  KERNEL="${PROJECT_ROOT}/kernel_pixel_6.12"
+else
+  log "Error: Unsupported kernel version: '${KERNEL_MAJOR_MINOR}' from branch '${GKI_BRANCH}'"
+  exit 1
 fi
 
 KSU_TYPE="$KSU_TYPE_FLAG"
 AOSP="$KERNEL/common/ack"
 DEVICE_DEFCONFIG="$KERNEL/private/devices/google/shusky/shusky_defconfig"
 GKI_DEFCONFIG="$AOSP/arch/arm64/configs/gki_defconfig"
-GKI_VERSION="$(echo "$GKI_BRANCH" | cut -d'-' -f1,2)"
 PATCH_DIR="${PROJECT_ROOT}/patches/susfs/$GKI_VERSION"
 
 # ==============================================================================
@@ -118,7 +127,7 @@ for mnt in "${PROJECT_ROOT}/kernel_pixel_6.1/common/ack" "${PROJECT_ROOT}/kernel
     }
   fi
 done
-rm -rf "${PROJECT_ROOT}/susfs4ksu" "${PROJECT_ROOT}/KPatch-Next" "${PROJECT_ROOT}/output" "${PROJECT_ROOT}/AnyKernel3" 2>/dev/null || true
+rm -rf "${PROJECT_ROOT}/susfs4ksu" "${PROJECT_ROOT}/KPatch-Next" "${PROJECT_ROOT}/output" "${PROJECT_ROOT}/AnyKernel3"
 
 for kernel_folder in stable_source beta_source; do
   if [[ -d "${PROJECT_ROOT}/$kernel_folder" ]]; then
@@ -157,7 +166,7 @@ else
 fi
 
 log "Updating GrapheneOS device repository..."
-if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
+if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
   if [[ ! -d "$KERNEL/.git" ]]; then
     log "Cloning kernel_pixel_6.1 from tag $PIXEL_TAG"
     git clone --depth=1 -b "$PIXEL_TAG" https://gitlab.com/grapheneos/kernel_pixel_6.1 "$KERNEL"
@@ -171,7 +180,7 @@ if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
       log "kernel_pixel_6.1 is already at tag $PIXEL_TAG. No update needed."
     fi
   fi
-else
+elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
   if [[ ! -d "$KERNEL/.git" ]]; then
     log "Cloning kernel_pixel_6.12 from branch $PIXEL_SPACECRAFT_BRANCH"
     git clone --depth=1 -b "$PIXEL_SPACECRAFT_BRANCH" https://gitlab.com/grapheneos/kernel_pixel_6.12 "$KERNEL"
@@ -188,10 +197,10 @@ if [[ "$USE_SUSFS" == "1" ]]; then
   log "Cloning susfs4ksu branch gki-${GKI_VERSION}"
   git clone https://gitlab.com/simonpunk/susfs4ksu --single-branch -b "gki-${GKI_VERSION}"
   cd "${PROJECT_ROOT}/susfs4ksu"
-  if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
+  if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
     git checkout "${SUSFS_KSU_COMMIT_6_1}"
-  elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
-    git checkout "${SUSFS_KSI_COMMIT_6_12}"
+  elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
+    git checkout "${SUSFS_KSU_COMMIT_6_12}"
   fi
 fi
 
@@ -224,20 +233,20 @@ CONFIG_KALLSYMS_ALL=y
 EOF
 fi
 
-# Отключаем проверку сортировки defconfig
-if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
-  # В 6.1 проверка вызывается через POST_DEFCONFIG_CMDS в build.config
+# Отключение проверки check_defconfig (для GKI)
+if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
+  # В 6.1 вырезаем вызов check_defconfig из скриптов сборки
   sed -i -E 's/check_defconfig( && )?//g' "$AOSP"/build.config.gki*
-elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
+elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
   # В 6.12 проверка задаётся атрибутом правила в BUILD.bazel
   sed -i '/name = "kernel_aarch64",/a\    check_defconfig = "disabled",' "$AOSP/BUILD.bazel"
 fi
 
 # Обход ABI-защиты (удаление защищенных экспортированных символов)
-if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
+if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
   rm -rf "$AOSP"/android/abi_gki_protected_exports_*
   perl -pi -e 's/^\s*"protected_exports_list"\s*:\s*"android\/abi_gki_protected_exports_aarch64",\s*$//;' "$AOSP/BUILD.bazel"
-elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
+elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
   perl -pi -e 's/^\s*protected_module_names_list\s*=\s*":gki_(?:aarch64|x86_64)_protected_module_names",\s*$//;' "$AOSP/BUILD.bazel"
 
   # Runtime ABI bypass для 6.12 (обход жесткой проверки CRC модулей)
@@ -256,7 +265,7 @@ sed -i 's/echo -n -dirty/echo -n ""/g' "$KERNEL/build/kernel/kleaf/workspace_sta
 sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" "$KERNEL/build/kernel/kleaf/impl/stamp.bzl" 2>/dev/null || true
 sed -i 's/-dirty//' "$AOSP/scripts/setlocalversion" 2>/dev/null || true
 
-if [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
+if [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
   #sed -i 's/ifdef CONFIG_ANDROID_BINDER_IPC_RUST/ifneq (,1)/' "$AOSP/drivers/android/binder/Makefile"
   #sed -i '/rust_binder\.ko/d' "$AOSP/modules.bzl"
   # Создаём символическую ссылку на бинарник rust. В prebuilts репозитория 6.12 от Google он имеет другую версию.
@@ -365,13 +374,13 @@ fi
 # ==============================================================================
 
 log "Correction of the .sh script used for build"
-if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
+if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
   # Удаляем этап подписи .ko модулей, так как собирается только raw image
   sed -i --follow-symlinks '/sign_file=$(mktemp)/,$d' ${KERNEL}/tools/build_dist.sh
   # Меняем цель Bazel с пакета дистрибутива на ядро
   sed -i --follow-symlinks 's/${DEVICE}\/dist/kernel/' ${KERNEL}/tools/build_dist.sh
   sed -i --follow-symlinks 's/bazel" run/bazel" build/' ${KERNEL}/tools/build_dist.sh
-elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
+elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
   # В android16 цель ядра называется :${DEVICE}/kernel (заменяем /dist на /kernel в ${DEVICE_TARGET}/dist)
   sed -i --follow-symlinks 's/\/dist/\/kernel/' ${KERNEL}/tools/build_dist.sh
   # Меняем run на build. Целевой объект "kernel" требует только build.
@@ -384,9 +393,10 @@ if [[ "${SAVE_CACHE}" == "0" ]]; then
   tools/bazel clean --expunge
 fi
 
-if [[ "${TYPE_FIRMWARE}" == "STABLE" ]]; then
+if [[ "$KERNEL_MAJOR_MINOR" == "6.1" ]]; then
+  export BUILD_NUMBER=$(shuf -i 10000000-99999999 -n 1)
   KLEAF_REPO_MANIFEST=aosp_manifest.xml ./build_shusky.sh --config=fast --lto=none --keep_going
-elif [[ "${TYPE_FIRMWARE}" == "BETA" ]]; then
+elif [[ "$KERNEL_MAJOR_MINOR" == "6.12" ]]; then
   export BUILD_NUMBER=$(shuf -i 10000000-99999999 -n 1)
   ./build_shusky.sh --config=fast --config=stamp --extra_git_project=common/ack --lto=none --keep_going
 fi
@@ -443,7 +453,7 @@ if [[ "$KSU_TYPE" == "KernelSU-Next" ]]; then
   cp -f "$DIST/Image" ./kernel
   "${PROJECT_ROOT}/KPatch-Next/magiskboot" repack boot.img boot_patched.img
   mv -f boot_patched.img boot.img
-else
+elif [[ "$KSU_TYPE" == "KernelSU" || "$KSU_TYPE" == "SukiSU-Ultra" || "$KSU_TYPE" == "None" ]]; then
   cp "$DIST/boot.img" "${PROJECT_ROOT}/output/"
   cd "${PROJECT_ROOT}/output"
 fi
