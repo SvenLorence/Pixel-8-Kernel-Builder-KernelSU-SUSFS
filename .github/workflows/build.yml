@@ -133,8 +133,12 @@ jobs:
               <td><code>${KSU_COMMIT}</code></td>
             </tr>
             <tr>
-              <td><b>SUSFS</b></td>
-              <td><code>${SUSFS_KSU_COMMIT}</code></td>
+              <td><b>SUSFS (6.1)</b></td>
+              <td><code>${SUSFS_KSU_COMMIT_6_1}</code></td>
+            </tr>
+            <tr>
+              <td><b>SUSFS (6.12)</b></td>
+              <td><code>${SUSFS_KSU_COMMIT_6_12}</code></td>
             </tr>
           </table>
 
