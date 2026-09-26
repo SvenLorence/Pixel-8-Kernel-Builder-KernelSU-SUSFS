@@ -410,9 +410,9 @@ DIST="$(find "${KERNEL}/out/bazel/output_user_root" -type d -name kernel_kbuild_
 TMPDIR="$(mktemp -d)"
 mkdir -p "${TMPDIR}/gki"
 
-curl -fsSL 'https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/mkbootimg.py?format=TEXT' | base64 -d > "${TMPDIR}/mkbootimg.py"
-curl -fsSL 'https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/gki/generate_gki_certificate.py?format=TEXT' | base64 -d > "${TMPDIR}/gki/generate_gki_certificate.py"
-curl -fsSL 'https://android.googlesource.com/platform/external/avb/+/refs/heads/main-kernel/avbtool.py?format=TEXT' | base64 -d > "${TMPDIR}/avbtool.py"
+curl -fsSL --retry 30 --retry-delay 2 'https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/mkbootimg.py?format=TEXT' | base64 -d > "${TMPDIR}/mkbootimg.py"
+curl -fsSL --retry 30 --retry-delay 2 'https://android.googlesource.com/platform/system/tools/mkbootimg/+/refs/heads/main/gki/generate_gki_certificate.py?format=TEXT' | base64 -d > "${TMPDIR}/gki/generate_gki_certificate.py"
+curl -fsSL --retry 30 --retry-delay 2 'https://android.googlesource.com/platform/external/avb/+/refs/heads/main-kernel/avbtool.py?format=TEXT' | base64 -d > "${TMPDIR}/avbtool.py"
 : > "${TMPDIR}/gki/__init__.py"
 
 lz4 -l -12 -f "${DIST}/Image" "${TMPDIR}/kernel"
