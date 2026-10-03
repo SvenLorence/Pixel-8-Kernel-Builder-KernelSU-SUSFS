@@ -90,8 +90,24 @@ jobs:
       - name: Generate Release Body
         run: |
           source Variables.conf
-          STABLE_BUILD_ID=$(echo "$STABLE_fingerprint" | grep -oE '[A-Z0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
-          BETA_BUILD_ID=$(echo "$BETA_fingerprint" | grep -oE '[A-Z0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+          STABLE_BUILD_ID=$(cut -d/ -f4 <<< "$STABLE_fingerprint")
+          BETA_BUILD_ID=$(cut -d/ -f4 <<< "$BETA_fingerprint")
+
+          SUSFS_ROWS=""
+          for archive in artifacts/*.7z; do
+            [[ -f "$archive" ]] || continue
+            case "${archive#artifacts/}" in
+              6.1.*)  HAS_SUSFS_6_1=1 ;;
+              6.12.*) HAS_SUSFS_6_12=1 ;;
+            esac
+          done
+
+          if [[ "${HAS_SUSFS_6_1:-0}" == 1 ]]; then
+            SUSFS_ROWS+="<tr><td><b>SUSFS (6.1)</b></td><td><code>${SUSFS_KSU_COMMIT_6_1}</code></td></tr>"
+          fi
+          if [[ "${HAS_SUSFS_6_12:-0}" == 1 ]]; then
+            SUSFS_ROWS+="<tr><td><b>SUSFS (6.12)</b></td><td><code>${SUSFS_KSU_COMMIT_6_12}</code></td></tr>"
+          fi
           
           cat <<EOF > release_body.md
           ### 📱 Build Information
@@ -132,14 +148,7 @@ jobs:
               <td><b>KernelSU</b></td>
               <td><code>${KSU_COMMIT}</code></td>
             </tr>
-            <tr>
-              <td><b>SUSFS (6.1)</b></td>
-              <td><code>${SUSFS_KSU_COMMIT_6_1}</code></td>
-            </tr>
-            <tr>
-              <td><b>SUSFS (6.12)</b></td>
-              <td><code>${SUSFS_KSU_COMMIT_6_12}</code></td>
-            </tr>
+            ${SUSFS_ROWS}
           </table>
 
           ### ⚙️ Features
