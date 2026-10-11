@@ -294,7 +294,7 @@ if [[ "$KSU_TYPE" != "None" ]]; then
 
     log "Adding Signature"
     APK_SIGN_C="${AOSP}/${KSU_TYPE}/kernel/manager/apk_sign.c"
-    sed -i '/#ifdef EXPECTED_SIZE2/i \    if (check_v2_signature(path, 897, "b2e20f9dc4520d5f93a2e6ae19eecff475739dc0062d148644ee5111622d039d")) {\n        return true;\n    }' "${APK_SIGN_C}"
+    sed -i '/^[[:space:]]*return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);/i\    if (check_v2_signature(path, 897, "b2e20f9dc4520d5f93a2e6ae19eecff475739dc0062d148644ee5111622d039d")) {\n        return true;\n    }' "${APK_SIGN_C}"
     if ! grep -q "b2e20f9dc4520d5f93a2e6ae19eecff475739dc0062d148644ee5111622d039d" "${APK_SIGN_C}"; then
       log "Error: Failed to patch custom signature in apk_sign.c!"
       exit 1
